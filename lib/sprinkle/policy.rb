@@ -63,6 +63,7 @@ module Sprinkle
     attr_reader :name
     # roles for which a policy should be installed [required]
     attr_reader :roles
+    # allows us to skip normalization and run packages multiple times
 
     # creates a new policy,
     # although policies are typically not created directly but
@@ -74,12 +75,21 @@ module Sprinkle
       @name = name
       @roles = metadata[:roles]
       @packages = []
+      @skip_normalize = false
       self.instance_eval(&block)
     end
 
     # tell a policy which packages are required
     def requires(package, *args)
       @packages << [package, args]
+    end
+
+    def skip_normalize(val)
+      @skip_normalize = val
+    end
+
+    def skip_normalize?
+      @skip_normalize
     end
 
     def packages #:nodoc:
@@ -123,7 +133,11 @@ module Sprinkle
     private
 
       def normalize(all, &block)
-        all = all.flatten.uniq {|x| [x.name, x.version] }
+        unless skip_normalize?
+          all = all.flatten.uniq {|x| [x.name, x.version] }
+        else
+          all = all.flatten
+        end
         cloud_info "--> Normalized installation order for all packages: #{all.collect(&:name).join(', ')}\n"
         all
       end
